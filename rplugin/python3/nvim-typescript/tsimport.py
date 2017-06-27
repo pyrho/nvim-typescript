@@ -2,7 +2,7 @@ import os
 import re
 
 def getImportCandidates(client, cfile, symbol):
-    matchingSymbols = client.getWorkplaceSymbols(cfile, symbol)
+    matchingSymbols = client.getWorkspaceSymbols(cfile, symbol)
     return [*map(lambda x: x["file"], [x for x in matchingSymbols["body"]
         if x['matchKind'] == "exact" and ('kindModifiers' in x) and x['kindModifiers'] == 'export'])]
 
