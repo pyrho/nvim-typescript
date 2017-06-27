@@ -43,8 +43,19 @@ class TypescriptHost(object):
     def relative_file(self):
         """
             Return the current file
+            If the currently focused buffer is not a proper buffer
+            (eg. location list window or quickfix window) `self.vim.current.buffer.name`
+            returns a None value.
+            In this case, do a best effort and return any buffer name.
+            This is obviously not optimal, but for lack of a better solution...
         """
-        return self.vim.current.buffer.name
+
+        if not self.vim.current.buffer.name:
+            if len(self.vim.buffers) > 0:
+                # Vim buffer numbers are 1-indexed
+                return self.vim.buffers[1].name
+        else:
+            return self.vim.current.buffer.name
 
     def reload(self):
         """
@@ -310,45 +321,28 @@ class TypescriptHost(object):
         else:
             self.printError('Server is not running')
 
-    # REQUEST NAVTo/Workplace symbols
-    # @neovim.function("TSGetWorkplaceSymbolsFunc", sync=True)
-    # def getWorkplaceSymbolsFunc(self, args=None):
-    #     return self._client.getWorkplaceSymbols(self.relative_file(), args[0])
 
-    # Display Doc symbols in loclist
-    # @neovim.command("TSGetDocSymbols")
-    # def tsgetdocsymbols(self):
-    #     if self._client.server_handle is not None:
-    #         self.reload()
-    #         docSysmbols = self.getDocSymbolsFunc()
-    #         if not docSysmbols:
-    #             pass
-    #         else:
-    #             docSysmbolsLoc = []
-    #             symbolList = docSysmbols['body']['childItems']
-    #             filename = re.sub(self.cwd + '/', '', self.relative_file())
-    #             if len(symbolList) > -1:
-    #                 for symbol in symbolList:
-    #                     docSysmbolsLoc.append({
-    #                         'filename': filename,
-    #                         'lnum': symbol['spans'][0]['start']['line'],
-    #                         'col':  symbol['spans'][0]['start']['offset'],
-    #                         'text': symbol['text']
-    #                     })
-    #
-    #                 if 'childItems' in symbol and len(symbol['childItems']) > 0:
-    #                     for childSymbol in symbol['childItems']:
-    #                         docSysmbolsLoc.append({
-    #                             'filename': filename,
-    #                             'lnum': childSymbol['spans'][0]['start']['line'],
-    #                             'col':  childSymbol['spans'][0]['start']['offset'],
-    #                             'text': childSymbol['text']
-    #                         })
-    #                 self.vim.call('setloclist', 0,
-    #                               docSysmbolsLoc, 'r', 'Symbols')
-    #                 self.vim.command('lwindow')
-    #     else:
-    #         self.printError('Server is not running')
+    @neovim.function("TSGetWorkspaceSymbolsFunc", sync=True)
+    def getWorkspaceSymbolsFunc(self, args=None):
+        if self._client.server_handle is not None:
+            searchSymbols = self._client.getWorkspaceSymbols(self.relative_file(), args[0])
+            if not searchSymbols:
+                return []
+            else:
+                docSysmbolsLoc = []
+                symbolList = searchSymbols['body']
+                filename = re.sub(self.cwd + '/', '', self.relative_file())
+                if len(symbolList) > -1:
+                    for symbol in symbolList:
+                        docSysmbolsLoc.append({
+                            'filename': re.sub(self.cwd + '/', '', symbol['file']),
+                            'lnum': symbol['start']['line'],
+                            'col': symbol['start']['offset'],
+                            'text': '(' + symbol['kind'] + '): ' + symbol['name']
+                        })
+                    return docSysmbolsLoc
+        else:
+            self.printError('Server is not running')
 
     @neovim.command("TSSig")
     def tssig(self):
