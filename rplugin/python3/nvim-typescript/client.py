@@ -212,7 +212,7 @@ class Client(object):
         return response
 
     def getWorkspaceSymbols(self, file, term=None):
-        args = {"file": file, "searchValue": term}
+        args = {"file": file, "searchValue": term, "maxResultCount": 100}
         response = self.send_request("navto", args)
         return response
 
